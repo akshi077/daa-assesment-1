@@ -135,7 +135,16 @@ export default function App() {
         })
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type');
+      let data: any;
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        console.error('Server non-JSON response:', text);
+        throw new Error('Server returned invalid response');
+      }
+
       if (res.ok && data.success && data.submission) {
         setFinalSubmissionRecord(data.submission);
         localStorage.removeItem(STORAGE_KEY);
@@ -147,7 +156,7 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('Final submit error:', err);
-      alert('Network error submitting assessment. Please click retry.');
+      alert(`Submission error: ${err.message || 'Network error'}. Please click retry.`);
       setIsSubmittingFinal(false);
     }
   }, [rollNo, name, codePerProblem, violations, startTime, isSubmittingFinal]);
@@ -238,7 +247,16 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ problemId: activeProblemId, code })
       });
-      const data = await res.json();
+
+      const contentType = res.headers.get('content-type');
+      let data: any;
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        console.error('Non-JSON response from /api/run:', text);
+        throw new Error('Server returned invalid response');
+      }
 
       if (res.ok) {
         setActiveRunResults({
@@ -251,7 +269,7 @@ export default function App() {
         alert(`Run error: ${data.error}`);
       }
     } catch (err: any) {
-      alert(`Network error during run: ${err.message}`);
+      alert(`Error running code: ${err.message}`);
     } finally {
       setIsRunning(false);
     }
@@ -268,7 +286,16 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ problemId: activeProblemId, code })
       });
-      const data = await res.json();
+
+      const contentType = res.headers.get('content-type');
+      let data: any;
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        console.error('Non-JSON response from /api/submit-problem:', text);
+        throw new Error('Server returned invalid response');
+      }
 
       if (res.ok) {
         setActiveRunResults({
@@ -308,7 +335,7 @@ export default function App() {
         alert(`Judge error: ${data.error}`);
       }
     } catch (err: any) {
-      alert(`Network error judging problem: ${err.message}`);
+      alert(`Error judging problem: ${err.message}`);
     } finally {
       setIsSubmittingProblem(false);
     }
