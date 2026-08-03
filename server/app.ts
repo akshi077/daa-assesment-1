@@ -273,18 +273,38 @@ apiRouter.get('/admin/export-csv', async (req, res) => {
   }
 });
 
-// Mount router under both /api and / so rewrites match regardless of path prefix (/api/submit-problem or /submit-problem)
-app.use('/api', apiRouter);
-app.use('/', apiRouter);
-
-// Fallback JSON 404 handler for API routes
-app.use((req, res) => {
-  res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl || req.url}` });
+// Fallback 404 handler for API routes
+apiRouter.use((req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl || req.url}` });
 });
 
-// Global Error Handler
+// Mount API router under /api
+app.use('/api', apiRouter);
+
+// Fallback for direct API routes (e.g. if Vercel rewrites strip /api prefix)
+app.use((req, res, next) => {
+  const url = req.url || '';
+  if (
+    url.startsWith('/run') ||
+    url.startsWith('/submit-problem') ||
+    url.startsWith('/submit') ||
+    url.startsWith('/health') ||
+    url.startsWith('/supabase/status') ||
+    url.startsWith('/violations/sync') ||
+    url.startsWith('/results/') ||
+    url.startsWith('/admin/')
+  ) {
+    return apiRouter(req, res, next);
+  }
+  next();
+});
+
+// Global Error Handler for API routes
 app.use((err: any, req: any, res: any, next: any) => {
   console.error('Unhandled server error:', err);
+  if (res.headersSent) {
+    return next(err);
+  }
   res.status(500).json({ error: err.message || 'Internal Server Error' });
 });
 
