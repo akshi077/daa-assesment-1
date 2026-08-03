@@ -49,8 +49,17 @@ function execPromise(
 
 async function checkIsJavaAvailable(): Promise<boolean> {
   if (javaAvailableCache !== null) return javaAvailableCache;
+  if (
+    process.env.VERCEL ||
+    process.env.VERCEL_ENV ||
+    process.env.NOW_REGION ||
+    !fs.existsSync('/usr/lib/jvm/java-17-openjdk-amd64/bin/javac')
+  ) {
+    javaAvailableCache = false;
+    return false;
+  }
   try {
-    const res = await execPromise(JAVAC_CMD, ['-version'], { cwd: os.tmpdir(), timeout: 2000 });
+    const res = await execPromise(JAVAC_CMD, ['-version'], { cwd: os.tmpdir(), timeout: 1000 });
     javaAvailableCache = !res.error && res.code === 0;
   } catch (e) {
     javaAvailableCache = false;
@@ -256,23 +265,33 @@ function evaluateJavaInVM(
   }
 
   let jsCode = candidateCode;
+  jsCode = jsCode.replace(/\/\*[\s\S]*?\*\//g, '');
+  jsCode = jsCode.replace(/\/\/.*/g, '');
   jsCode = jsCode.replace(/package\s+[\w\.]+;/g, '');
   jsCode = jsCode.replace(/import\s+[\w\.\*]+;/g, '');
 
-  jsCode = jsCode.replace(/new\s+int\s*\[\s*([^\]]+)\s*\]\s*\[\s*([^\]]+)\s*\]/g, 'Array.from({length: ($1)}, () => new Array(($2)).fill(0))');
-  jsCode = jsCode.replace(/new\s+int\s*\[\s*([^\]]+)\s*\]/g, 'new Array(($1)).fill(0)');
-  jsCode = jsCode.replace(/new\s+int\s*\[\s*\]\s*\[\s*\]\s*\{/g, '[');
-  jsCode = jsCode.replace(/new\s+int\s*\[\s*\]\s*\{/g, '[');
+  jsCode = jsCode.replace(/\bpublic\s+class\b/g, 'class');
+
+  jsCode = jsCode.replace(/\bpublic\s+static\s+(?:void|int|double|float|long|boolean|String|char|int\[\]|int\[\]\[\]|double\[\]|String\[\])\b/g, 'static');
+  jsCode = jsCode.replace(/\bpublic\s+(?:void|int|double|float|long|boolean|String|char|int\[\]|int\[\]\[\]|double\[\]|String\[\])\b/g, '');
+  jsCode = jsCode.replace(/\bstatic\s+(?:void|int|double|float|long|boolean|String|char|int\[\]|int\[\]\[\]|double\[\]|String\[\])\b/g, 'static');
+
+  jsCode = jsCode.replace(/\(([^)]*)\)/g, (match, paramStr) => {
+    if (!paramStr.trim()) return '()';
+    const cleanParams = paramStr.split(',').map((p) => {
+      const parts = p.trim().split(/\s+/);
+      return parts.length > 1 ? parts[parts.length - 1] : p.trim();
+    }).join(', ');
+    return '(' + cleanParams + ')';
+  });
+
+  jsCode = jsCode.replace(/new\s+(?:int|double|float|long)\s*\[\s*([^\]]+)\s*\]\s*\[\s*([^\]]+)\s*\]/g, 'Array.from({length: ($1)}, () => new Array(($2)).fill(0))');
+  jsCode = jsCode.replace(/new\s+(?:int|double|float|long)\s*\[\s*([^\]]+)\s*\]/g, 'new Array(($1)).fill(0)');
+  jsCode = jsCode.replace(/new\s+(?:int|double|float|long|String)\s*\[\s*\]\s*\[\s*\]\s*\{/g, '[');
+  jsCode = jsCode.replace(/new\s+(?:int|double|float|long|String)\s*\[\s*\]\s*\{/g, '[');
 
   jsCode = jsCode.replace(/\b(int|double|float|long|boolean|String|char)\b/g, 'let');
-  jsCode = jsCode.replace(/\b(int\[\]|int\[\]\[\]|double\[\]|String\[\])\b/g, 'let');
-
-  jsCode = jsCode.replace(/\bpublic\s+static\s+let\b/g, 'static');
-  jsCode = jsCode.replace(/\bpublic\s+let\b/g, '');
-  jsCode = jsCode.replace(/\bpublic\s+static\s+void\b/g, 'static');
-  jsCode = jsCode.replace(/\bpublic\s+void\b/g, '');
-  jsCode = jsCode.replace(/\bstatic\s+void\b/g, 'static');
-  jsCode = jsCode.replace(/\bstatic\s+let\b/g, 'static');
+  jsCode = jsCode.replace(/\b(let\[\]|let\[\]\[\])\b/g, 'let');
 
   jsCode = jsCode.replace(/System\.out\.println/g, 'console.log');
 
