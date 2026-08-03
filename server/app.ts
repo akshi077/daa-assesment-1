@@ -273,38 +273,7 @@ apiRouter.get('/admin/export-csv', async (req, res) => {
   }
 });
 
-// URL Path Normalizer for Vercel Serverless Function Rewrites
-app.use((req, res, next) => {
-  const fullPath = req.originalUrl || req.url || '';
-  if (fullPath.includes('/submit-problem')) {
-    req.url = '/submit-problem';
-  } else if (fullPath.includes('/submit')) {
-    req.url = '/submit';
-  } else if (fullPath.includes('/run')) {
-    req.url = '/run';
-  } else if (fullPath.includes('/health')) {
-    req.url = '/health';
-  } else if (fullPath.includes('/supabase/status')) {
-    req.url = '/supabase/status';
-  } else if (fullPath.includes('/violations/sync')) {
-    req.url = '/violations/sync';
-  } else if (fullPath.includes('/admin/login')) {
-    req.url = '/admin/login';
-  } else if (fullPath.includes('/admin/results')) {
-    req.url = '/admin/results';
-  } else if (fullPath.includes('/admin/export-csv')) {
-    req.url = '/admin/export-csv';
-  } else if (fullPath.includes('/admin/candidate/')) {
-    const parts = fullPath.split('/admin/candidate/');
-    req.url = '/admin/candidate/' + parts[1];
-  } else if (fullPath.includes('/results/')) {
-    const parts = fullPath.split('/results/');
-    req.url = '/results/' + parts[1];
-  }
-  next();
-});
-
-// Mount router under both /api and / so rewrites match regardless of path prefix
+// Mount router under both /api and / so rewrites match regardless of path prefix (/api/submit-problem or /submit-problem)
 app.use('/api', apiRouter);
 app.use('/', apiRouter);
 

@@ -232,6 +232,50 @@ public class Main {
 }
 
 // In-Memory JavaScript Fallback Evaluator (used on Vercel Serverless where JDK/javac is absent)
+function wrapArrayProxy(arr: any): any {
+  if (!Array.isArray(arr)) return arr;
+  const proxied = arr.map((item) => (Array.isArray(item) ? wrapArrayProxy(item) : item));
+  return new Proxy(proxied, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string' && !isNaN(Number(prop))) {
+        const idx = Math.floor(Number(prop));
+        return target[idx];
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string' && !isNaN(Number(prop))) {
+        const idx = Math.floor(Number(prop));
+        target[idx] = value;
+        return true;
+      }
+      return Reflect.set(target, prop, value, receiver);
+    }
+  });
+}
+
+function invokeSolutionMethod(SolutionClass: any, methodName: string, args: any[]): any {
+  let instance: any = null;
+  try {
+    if (typeof SolutionClass === 'function') {
+      instance = new SolutionClass();
+    }
+  } catch (e) {
+    // Ignore instantiation error if static only
+  }
+
+  const proxiedArgs = args.map((a) => wrapArrayProxy(a));
+
+  if (typeof SolutionClass[methodName] === 'function') {
+    return SolutionClass[methodName](...proxiedArgs);
+  } else if (instance && typeof instance[methodName] === 'function') {
+    return instance[methodName](...proxiedArgs);
+  } else if (SolutionClass.prototype && typeof SolutionClass.prototype[methodName] === 'function') {
+    return SolutionClass.prototype[methodName].apply(instance || {}, proxiedArgs);
+  }
+  throw new Error(`Method "${methodName}" not found on Solution class.`);
+}
+
 function evaluateJavaInVM(
   problemId: string,
   candidateCode: string,
@@ -265,34 +309,46 @@ function evaluateJavaInVM(
   }
 
   let jsCode = candidateCode;
+  // 1. Remove comments
   jsCode = jsCode.replace(/\/\*[\s\S]*?\*\//g, '');
   jsCode = jsCode.replace(/\/\/.*/g, '');
+
+  // 2. Remove package and import lines
   jsCode = jsCode.replace(/package\s+[\w\.]+;/g, '');
   jsCode = jsCode.replace(/import\s+[\w\.\*]+;/g, '');
 
+  // 3. Class declaration
   jsCode = jsCode.replace(/\bpublic\s+class\b/g, 'class');
 
-  jsCode = jsCode.replace(/\bpublic\s+static\s+(?:void|int|double|float|long|boolean|String|char|int\[\]|int\[\]\[\]|double\[\]|String\[\])\b/g, 'static');
-  jsCode = jsCode.replace(/\bpublic\s+(?:void|int|double|float|long|boolean|String|char|int\[\]|int\[\]\[\]|double\[\]|String\[\])\b/g, '');
-  jsCode = jsCode.replace(/\bstatic\s+(?:void|int|double|float|long|boolean|String|char|int\[\]|int\[\]\[\]|double\[\]|String\[\])\b/g, 'static');
+  // 4. Method headers (target method signatures ending with `{` to safely clean parameter types without touching code bodies)
+  jsCode = jsCode.replace(
+    /\b(?:public|private|protected)?\s*(?:static\s+)?(?:void|int|double|float|long|boolean|char|String|int\[\]|int\[\]\[\]|double\[\]|double\[\]\[\]|String\[\])\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\{/g,
+    (match, methodName, paramList) => {
+      const cleanedParams = paramList
+        .split(',')
+        .map((p: string) => {
+          const trimmed = p.trim();
+          if (!trimmed) return '';
+          const parts = trimmed.split(/\s+/);
+          return parts[parts.length - 1];
+        })
+        .filter(Boolean)
+        .join(', ');
+      const isStatic = match.includes('static');
+      return `${isStatic ? 'static ' : ''}${methodName}(${cleanedParams}) {`;
+    }
+  );
 
-  jsCode = jsCode.replace(/\(([^)]*)\)/g, (match, paramStr) => {
-    if (!paramStr.trim()) return '()';
-    const cleanParams = paramStr.split(',').map((p) => {
-      const parts = p.trim().split(/\s+/);
-      return parts.length > 1 ? parts[parts.length - 1] : p.trim();
-    }).join(', ');
-    return '(' + cleanParams + ')';
-  });
+  // 5. Variable declarations (e.g., "int i = 0;", "int[] nums", "int[][] matrix")
+  jsCode = jsCode.replace(/\b(?:int|double|float|long|boolean|char|String|var)(?:\[\])*\s+([a-zA-Z0-9_]+)/g, 'let $1');
 
-  jsCode = jsCode.replace(/new\s+(?:int|double|float|long)\s*\[\s*([^\]]+)\s*\]\s*\[\s*([^\]]+)\s*\]/g, 'Array.from({length: ($1)}, () => new Array(($2)).fill(0))');
-  jsCode = jsCode.replace(/new\s+(?:int|double|float|long)\s*\[\s*([^\]]+)\s*\]/g, 'new Array(($1)).fill(0)');
+  // 6. Array instantiations
+  jsCode = jsCode.replace(/new\s+(?:int|double|float|long|boolean|String)\s*\[\s*([^\]]+)\s*\]\s*\[\s*([^\]]+)\s*\]/g, 'Array.from({length: ($1)}, () => new Array(($2)).fill(0))');
+  jsCode = jsCode.replace(/new\s+(?:int|double|float|long|boolean|String)\s*\[\s*([^\]]+)\s*\]/g, 'new Array(($1)).fill(0)');
   jsCode = jsCode.replace(/new\s+(?:int|double|float|long|String)\s*\[\s*\]\s*\[\s*\]\s*\{/g, '[');
   jsCode = jsCode.replace(/new\s+(?:int|double|float|long|String)\s*\[\s*\]\s*\{/g, '[');
 
-  jsCode = jsCode.replace(/\b(int|double|float|long|boolean|String|char)\b/g, 'let');
-  jsCode = jsCode.replace(/\b(let\[\]|let\[\]\[\])\b/g, 'let');
-
+  // 7. System.out.println
   jsCode = jsCode.replace(/System\.out\.println/g, 'console.log');
 
   let SolutionClass: any;
@@ -311,11 +367,11 @@ function evaluateJavaInVM(
         globalThis.Solution = Solution;
       }
     `);
-    script.runInContext(context, { timeout: 2000 });
+    script.runInContext(context, { timeout: 3000 });
     SolutionClass = sandbox.Solution;
 
     if (!SolutionClass) {
-      throw new Error('Solution class definition missing.');
+      throw new Error('Solution class definition missing after compilation.');
     }
   } catch (err: any) {
     const results: TestCaseResult[] = testCasesToRun.map((tc) => ({
@@ -356,9 +412,7 @@ function evaluateJavaInVM(
         else if (tc.id === 'tc4') { nums1 = [4, 5, 6, 0, 0, 0]; m = 3; nums2 = [1, 2, 3]; n = 3; }
         else if (tc.id === 'tc5') { nums1 = [0, 0, 0, 0]; m = 0; nums2 = [1, 2, 3, 4]; n = 4; }
 
-        if (typeof SolutionClass.merge === 'function') {
-          SolutionClass.merge(nums1, m, nums2, n);
-        }
+        invokeSolutionMethod(SolutionClass, 'merge', [nums1, m, nums2, n]);
         actualVal = JSON.stringify(nums1);
       } else if (problemId === 'binary-search') {
         let arr: number[] = [];
@@ -370,11 +424,8 @@ function evaluateJavaInVM(
         else if (tc.id === 'tc4') { arr = []; target = 1; }
         else if (tc.id === 'tc5') { arr = [1, 2, 3, 4, 5]; target = 1; }
 
-        if (typeof SolutionClass.binarySearch === 'function') {
-          actualVal = String(SolutionClass.binarySearch(arr, target));
-        } else {
-          actualVal = '-1';
-        }
+        const res = invokeSolutionMethod(SolutionClass, 'binarySearch', [arr, target]);
+        actualVal = typeof res === 'number' ? Math.trunc(res) : res;
       } else if (problemId === 'matrix-multiplication') {
         let A: number[][] = [];
         let B: number[][] = [];
@@ -385,12 +436,8 @@ function evaluateJavaInVM(
         else if (tc.id === 'tc4') { A = [[2]]; B = [[3]]; }
         else if (tc.id === 'tc5') { A = [[1, 1], [1, 1]]; B = [[1, 1], [1, 1]]; }
 
-        if (typeof SolutionClass.multiply === 'function') {
-          const resMatrix = SolutionClass.multiply(A, B);
-          actualVal = JSON.stringify(resMatrix);
-        } else {
-          actualVal = '[[]]';
-        }
+        const resMatrix = invokeSolutionMethod(SolutionClass, 'multiply', [A, B]);
+        actualVal = JSON.stringify(resMatrix);
       }
 
       const normActual = normalizeOutput(String(actualVal));
