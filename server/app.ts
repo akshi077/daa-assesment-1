@@ -1,6 +1,4 @@
 import express from 'express';
-import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { judgeCode } from './judge';
 import {
   getAllSubmissionsAsync,
@@ -35,23 +33,17 @@ app.use((req, res, next) => {
   express.json({ limit: '10mb' })(req, res, next);
 });
 
-// URL Path Normalization for Vercel Rewrites
-app.use((req, res, next) => {
-  if (!req.url.startsWith('/api')) {
-    req.url = '/api' + (req.url.startsWith('/') ? '' : '/') + req.url;
-  }
-  next();
-});
+const apiRouter = express.Router();
 
 // API Routes
-app.get('/api/health', (req, res) => {
+apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
 // Run visible sample test cases
-app.post('/api/run', async (req, res) => {
+apiRouter.post('/run', async (req, res) => {
   try {
-    const { problemId, code } = req.body;
+    const { problemId, code } = req.body || {};
     if (!problemId || typeof code !== 'string') {
       res.status(400).json({ error: 'Missing problemId or code' });
       return;
@@ -60,15 +52,15 @@ app.post('/api/run', async (req, res) => {
     const result = await judgeCode(problemId, code, 'run');
     res.json(result);
   } catch (err: any) {
-    console.error('Error in /api/run:', err);
+    console.error('Error in /run:', err);
     res.status(500).json({ error: err.message || 'Internal judge error' });
   }
 });
 
 // Submit problem (all test cases: visible + hidden)
-app.post('/api/submit-problem', async (req, res) => {
+apiRouter.post('/submit-problem', async (req, res) => {
   try {
-    const { problemId, code } = req.body;
+    const { problemId, code } = req.body || {};
     if (!problemId || typeof code !== 'string') {
       res.status(400).json({ error: 'Missing problemId or code' });
       return;
@@ -77,15 +69,15 @@ app.post('/api/submit-problem', async (req, res) => {
     const result = await judgeCode(problemId, code, 'submit');
     res.json(result);
   } catch (err: any) {
-    console.error('Error in /api/submit-problem:', err);
+    console.error('Error in /submit-problem:', err);
     res.status(500).json({ error: err.message || 'Internal judge error' });
   }
 });
 
 // Final submit of all problems
-app.post('/api/submit', async (req, res) => {
+apiRouter.post('/submit', async (req, res) => {
   try {
-    const { rollNo, name, codePerProblem, violations, timeTakenSeconds } = req.body;
+    const { rollNo, name, codePerProblem, violations, timeTakenSeconds } = req.body || {};
 
     if (!rollNo || !name || !codePerProblem) {
       res.status(400).json({ error: 'Missing rollNo, name, or codePerProblem' });
@@ -172,13 +164,13 @@ app.post('/api/submit', async (req, res) => {
     await saveOrUpdateSubmissionAsync(submissionRecord);
     res.json({ success: true, submission: submissionRecord });
   } catch (err: any) {
-    console.error('Error in /api/submit:', err);
+    console.error('Error in /submit:', err);
     res.status(500).json({ error: err.message || 'Error processing final submission' });
   }
 });
 
 // System storage status check
-app.get('/api/supabase/status', async (req, res) => {
+apiRouter.get('/supabase/status', async (req, res) => {
   res.json({
     configured: true,
     connected: true,
@@ -189,9 +181,9 @@ app.get('/api/supabase/status', async (req, res) => {
 });
 
 // Sync violation count
-app.post('/api/violations/sync', async (req, res) => {
+apiRouter.post('/violations/sync', async (req, res) => {
   try {
-    const { rollNo, violations } = req.body;
+    const { rollNo, violations } = req.body || {};
     if (rollNo && typeof violations === 'number') {
       const existing = await getSubmissionByRollNoAsync(rollNo);
       if (existing) {
@@ -206,7 +198,7 @@ app.post('/api/violations/sync', async (req, res) => {
 });
 
 // Get candidate submission results
-app.get('/api/results/:rollNo', async (req, res) => {
+apiRouter.get('/results/:rollNo', async (req, res) => {
   try {
     const record = await getSubmissionByRollNoAsync(req.params.rollNo);
     if (!record) {
@@ -220,8 +212,8 @@ app.get('/api/results/:rollNo', async (req, res) => {
 });
 
 // Admin Login
-app.post('/api/admin/login', (req, res) => {
-  const { password } = req.body;
+apiRouter.post('/admin/login', (req, res) => {
+  const { password } = req.body || {};
   if (password === '250806') {
     res.json({ success: true, token: 'admin-authorized-250806' });
   } else {
@@ -230,7 +222,7 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 // Admin Get All Results
-app.get('/api/admin/results', async (req, res) => {
+apiRouter.get('/admin/results', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.includes('admin-authorized-250806')) {
@@ -245,7 +237,7 @@ app.get('/api/admin/results', async (req, res) => {
 });
 
 // Admin Delete Candidate Submission
-app.delete('/api/admin/candidate/:rollNo', async (req, res) => {
+apiRouter.delete('/admin/candidate/:rollNo', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.includes('admin-authorized-250806')) {
@@ -265,7 +257,7 @@ app.delete('/api/admin/candidate/:rollNo', async (req, res) => {
 });
 
 // Admin Export CSV
-app.get('/api/admin/export-csv', async (req, res) => {
+apiRouter.get('/admin/export-csv', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.includes('admin-authorized-250806')) {
@@ -280,3 +272,19 @@ app.get('/api/admin/export-csv', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Mount router under both /api and / so rewrites match regardless of path prefix
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
+
+// Fallback JSON 404 handler for API routes
+app.use((req, res) => {
+  res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl || req.url}` });
+});
+
+// Global Error Handler
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('Unhandled server error:', err);
+  res.status(500).json({ error: err.message || 'Internal Server Error' });
+});
+
