@@ -1,0 +1,6 @@
+{
+  "name": "DAA Assessment",
+  "description": "Online Coding Assessment Platform for Design & Analysis of Algorithms in Java with live test case judge and anti-cheating monitoring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

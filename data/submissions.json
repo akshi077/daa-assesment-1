@@ -1,0 +1,169 @@
+[
+  {
+    "id": "sub_1785585460246_jqyl",
+    "rollNo": "1121-KI-897",
+    "name": "Dinosaur",
+    "totalScore": 0,
+    "mergeSortMarks": 0,
+    "binarySearchMarks": 0,
+    "matrixMultMarks": 0,
+    "violations": 1,
+    "timeTakenSeconds": 97,
+    "timeTakenFormatted": "1m 37s",
+    "submittedAt": "Aug 1, 2026, 5:27:40 PM IST",
+    "codePerProblem": {
+      "merge-sorted-array": "public class Solution {\n    public static void merge(int[] nums1, int m, int[] nums2, int n) {\n        // Modify nums1 in-place, do not return anything\n    }\n\n    \n}",
+      "binary-search": "public class Solution {\n    public static int binarySearch(int[] arr, int target) {\n        // Write your code here\n        return -1;\n    }\n}",
+      "matrix-multiplication": "public class Solution {\n    public static int[][] multiply(int[][] A, int[][] B) {\n        // Write your code here\n        return new int[0][0];\n    }\n}"
+    },
+    "problemResults": {
+      "merge-sorted-array": {
+        "passedCount": 0,
+        "totalCount": 5,
+        "marksEarned": 0,
+        "testResults": [
+          {
+            "id": "msa-1",
+            "passed": false,
+            "input": "nums1=[1,2,3,0,0,0], m=3, nums2=[2,5,6], n=3",
+            "expectedOutput": "[1, 2, 2, 3, 5, 6]",
+            "actualOutput": "",
+            "error": "Compilation Error:\nspawn javac ENOENT",
+            "isHidden": false,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "msa-2",
+            "passed": false,
+            "input": "nums1=[1], m=1, nums2=[], n=0",
+            "expectedOutput": "[1]",
+            "actualOutput": "",
+            "error": "Compilation Error:\nspawn javac ENOENT",
+            "isHidden": false,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "msa-3",
+            "passed": false,
+            "input": "nums1=[0], m=0, nums2=[1], n=1",
+            "expectedOutput": "[1]",
+            "actualOutput": "",
+            "error": "Compilation Error:\nspawn javac ENOENT",
+            "isHidden": false,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "msa-4",
+            "passed": false,
+            "isHidden": true,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "msa-5",
+            "passed": false,
+            "isHidden": true,
+            "status": "COMPILE_ERROR"
+          }
+        ]
+      },
+      "binary-search": {
+        "passedCount": 0,
+        "totalCount": 5,
+        "marksEarned": 0,
+        "testResults": [
+          {
+            "id": "bs-1",
+            "passed": false,
+            "input": "arr=[1,3,5,7,9,11], target=7",
+            "expectedOutput": "3",
+            "actualOutput": "",
+            "error": "Compilation Error:\nspawn javac ENOENT",
+            "isHidden": false,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "bs-2",
+            "passed": false,
+            "input": "arr=[2,4,6,8], target=5",
+            "expectedOutput": "-1",
+            "actualOutput": "",
+            "error": "Compilation Error:\nspawn javac ENOENT",
+            "isHidden": false,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "bs-3",
+            "passed": false,
+            "input": "arr=[10], target=10",
+            "expectedOutput": "0",
+            "actualOutput": "",
+            "error": "Compilation Error:\nspawn javac ENOENT",
+            "isHidden": false,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "bs-4",
+            "passed": false,
+            "isHidden": true,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "bs-5",
+            "passed": false,
+            "isHidden": true,
+            "status": "COMPILE_ERROR"
+          }
+        ]
+      },
+      "matrix-multiplication": {
+        "passedCount": 0,
+        "totalCount": 5,
+        "marksEarned": 0,
+        "testResults": [
+          {
+            "id": "mm-1",
+            "passed": false,
+            "input": "A=[[1,2],[3,4]], B=[[5,6],[7,8]]",
+            "expectedOutput": "[[19, 22], [43, 50]]",
+            "actualOutput": "",
+            "error": "Compilation Error:\nspawn javac ENOENT",
+            "isHidden": false,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "mm-2",
+            "passed": false,
+            "input": "A=[[1,0],[0,1]], B=[[2,3],[4,5]]",
+            "expectedOutput": "[[2, 3], [4, 5]]",
+            "actualOutput": "",
+            "error": "Compilation Error:\nspawn javac ENOENT",
+            "isHidden": false,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "mm-3",
+            "passed": false,
+            "input": "A=[[1,2,3]], B=[[1],[1],[1]]",
+            "expectedOutput": "[[6]]",
+            "actualOutput": "",
+            "error": "Compilation Error:\nspawn javac ENOENT",
+            "isHidden": false,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "mm-4",
+            "passed": false,
+            "isHidden": true,
+            "status": "COMPILE_ERROR"
+          },
+          {
+            "id": "mm-5",
+            "passed": false,
+            "isHidden": true,
+            "status": "COMPILE_ERROR"
+          }
+        ]
+      }
+    }
+  }
+]
